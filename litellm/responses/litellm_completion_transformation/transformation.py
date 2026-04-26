@@ -171,7 +171,9 @@ class LiteLLMCompletionResponsesConfig:
             tools,
             web_search_options,
         ) = LiteLLMCompletionResponsesConfig.transform_responses_api_tools_to_chat_completion_tools(
-            responses_api_request.get("tools") or []  # type: ignore
+            responses_api_request.get("tools") or [],  # type: ignore
+            custom_llm_provider=custom_llm_provider,
+            model=model,
         )
 
         response_format = None
@@ -1349,8 +1351,37 @@ class LiteLLMCompletionResponsesConfig:
         return ChatCompletionSystemMessage(role="system", content=instructions or "")
 
     @staticmethod
+    def _is_codex_minimax_m27_responses_bridge(
+        custom_llm_provider: Optional[str],
+        model: Optional[str],
+    ) -> bool:
+        if custom_llm_provider != "minimax" or model is None:
+            return False
+        return model.split("/", 1)[-1].lower() == "codex-minimax-m2.7"
+
+    @staticmethod
+    def _raise_unsupported_minimax_responses_tool(
+        tool_type: str,
+        model: Optional[str],
+    ) -> None:
+        import litellm
+
+        raise litellm.BadRequestError(
+            message=(
+                f"Unsupported tool type '{tool_type}' for minimax/{model}. "
+                "MiniMax Codex V1 supports function tools only. "
+                "Use GPT models for richer Responses features such as MCP namespace tools, "
+                "web search, or image generation."
+            ),
+            model=model or "codex-minimax-m2.7",
+            llm_provider="minimax",
+        )
+
+    @staticmethod
     def transform_responses_api_tools_to_chat_completion_tools(
         tools: Optional[List[Union[FunctionToolParam, OpenAIMcpServerTool]]],
+        custom_llm_provider: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> Tuple[
         List[Union[ChatCompletionToolParam, OpenAIMcpServerTool]],
         Optional[OpenAIWebSearchOptions],
@@ -1365,6 +1396,15 @@ class LiteLLMCompletionResponsesConfig:
         ] = []
         web_search_options: Optional[OpenAIWebSearchOptions] = None
         for tool in tools:
+            tool_type = str(tool.get("type") or "")
+            if LiteLLMCompletionResponsesConfig._is_codex_minimax_m27_responses_bridge(
+                custom_llm_provider=custom_llm_provider,
+                model=model,
+            ) and tool_type != "function":
+                LiteLLMCompletionResponsesConfig._raise_unsupported_minimax_responses_tool(
+                    tool_type=tool_type,
+                    model=model,
+                )
             if tool.get("type") == "mcp":
                 chat_completion_tools.append(cast(OpenAIMcpServerTool, tool))
             elif (

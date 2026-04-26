@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(
     0, os.path.abspath("../../..")
 )  # Adds the parent directory to the system path
@@ -2170,3 +2172,75 @@ class TestEnsureOutputItemContentPartAdded:
 
         events = iterator._pending_response_events
         assert len(events) == 2
+
+
+def test_minimax_responses_function_tools_are_preserved():
+    """MiniMax Codex should preserve function tools required for agent turns."""
+    tools, web_search_options = (
+        LiteLLMCompletionResponsesConfig.transform_responses_api_tools_to_chat_completion_tools(
+            tools=[
+                {
+                    "type": "function",
+                    "name": "shell",
+                    "description": "run shell commands",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "cmd": {"type": "string"},
+                        },
+                        "required": ["cmd"],
+                    },
+                    "strict": True,
+                }
+            ],
+            custom_llm_provider="minimax",
+            model="codex-minimax-m2.7",
+        )
+    )
+
+    assert web_search_options is None
+    assert tools == [
+        {
+            "type": "function",
+            "function": {
+                "name": "shell",
+                "description": "run shell commands",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "cmd": {"type": "string"},
+                    },
+                    "required": ["cmd"],
+                },
+                "strict": True,
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "tool",
+    [
+        {"type": "mcp", "server_label": "filesystem"},
+        {"type": "namespace", "namespace": "tools"},
+        {"type": "web_search_preview", "search_context_size": "low"},
+        {"type": "web_search", "search_context_size": "low"},
+        {"type": "image_generation"},
+    ],
+)
+def test_minimax_responses_unsupported_tools_raise_bad_request(tool):
+    """MiniMax Codex should fail fast instead of forwarding unsupported tools."""
+    import litellm
+
+    with pytest.raises(litellm.BadRequestError) as exc_info:
+        LiteLLMCompletionResponsesConfig.transform_responses_api_tools_to_chat_completion_tools(
+            tools=[tool],
+            custom_llm_provider="minimax",
+            model="codex-minimax-m2.7",
+        )
+
+    error_message = str(exc_info.value)
+    assert "codex-minimax-m2.7" in error_message
+    assert "minimax" in error_message.lower()
+    assert "function tools only" in error_message
+    assert "GPT" in error_message
