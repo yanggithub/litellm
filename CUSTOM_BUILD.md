@@ -87,21 +87,23 @@ model_list:
     litellm_params:
       model: chatgpt/gpt-5.5
 
-  - model_name: codex-planner
+  - model_name: gpt-5.4
     litellm_params:
-      model: chatgpt/gpt-5.5
+      model: chatgpt/gpt-5.4
 
-  - model_name: codex-implementer
+  - model_name: gpt-5.4-mini
     litellm_params:
-      model: minimax/codex-minimax-m2.7
-      api_key: os.environ/MINIMAX_API_KEY
+      model: chatgpt/gpt-5.4-mini
 
-  - model_name: codex-minimax-m2.7
+  - model_name: gpt-5.3-codex
     litellm_params:
-      model: minimax/codex-minimax-m2.7
-      api_key: os.environ/MINIMAX_API_KEY
+      model: chatgpt/gpt-5.3-codex
 
-  - model_name: minimax/codex-minimax-m2.7
+  - model_name: gpt-5.2
+    litellm_params:
+      model: chatgpt/gpt-5.2
+
+  - model_name: minimax-m2.7
     litellm_params:
       model: minimax/codex-minimax-m2.7
       api_key: os.environ/MINIMAX_API_KEY
@@ -110,12 +112,12 @@ litellm_settings:
   drop_params: true
 ```
 
-Use `codex-planner` for planning turns that need native Responses features. The `gpt-5.5` entry is a compatibility alias for clients that still send the raw model name. Use `codex-implementer` for implementation turns that only require chat-style text plus function tools. The `codex-minimax-m2.7` and `minimax/codex-minimax-m2.7` entries are compatibility aliases for clients that send the raw MiniMax model name.
+Use `gpt-5.5` for planning turns that need the strongest native Responses features. The `gpt-*` entries expose OpenAI OAuth-backed ChatGPT models for clients that send raw OpenAI model names. Use `minimax-m2.7` for implementation turns that only require chat-style text plus function tools.
 
-MiniMax does not support web search. If a Codex sub-agent uses `codex-implementer`, disable web search in that agent config:
+MiniMax does not support web search. If a Codex sub-agent uses `minimax-m2.7`, disable web search in that agent config:
 
 ```toml
-model = "codex-implementer"
+model = "minimax-m2.7"
 model_provider = "litellm-custom"
 web_search = "disabled"
 ```
@@ -229,13 +231,13 @@ The adapter rejects unsupported tool shapes instead of forwarding them to MiniMa
 
 ## Smoke Test
 
-Start the proxy, then send a Responses request to the ChatGPT planning alias. ChatGPT expects list-shaped Responses input:
+Start the proxy, then send a Responses request to the ChatGPT planning model. ChatGPT expects list-shaped Responses input:
 
 ```bash
 curl http://localhost:4000/v1/responses \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "codex-planner",
+    "model": "gpt-5.5",
     "input": [
       {
         "role": "user",
@@ -255,11 +257,11 @@ Then send a Responses request to the MiniMax implementation alias:
 curl http://localhost:4000/v1/responses \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "codex-implementer",
+    "model": "minimax-m2.7",
     "input": "Say hello in one sentence.",
     "max_output_tokens": 128,
     "temperature": 0.2
   }'
 ```
 
-For tool-heavy planning or non-function Responses tools, route the request to `codex-planner` instead.
+For tool-heavy planning or non-function Responses tools, route the request to a `gpt-*` model instead.

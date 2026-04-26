@@ -1378,6 +1378,21 @@ class LiteLLMCompletionResponsesConfig:
         )
 
     @staticmethod
+    def _raise_unsupported_minimax_responses_function_tool(
+        model: Optional[str],
+    ) -> None:
+        import litellm
+
+        raise litellm.BadRequestError(
+            message=(
+                f"Unsupported function tool for minimax/{model}. "
+                "MiniMax Codex V1 requires function tools with name."
+            ),
+            model=model or "codex-minimax-m2.7",
+            llm_provider="minimax",
+        )
+
+    @staticmethod
     def transform_responses_api_tools_to_chat_completion_tools(
         tools: Optional[List[Union[FunctionToolParam, OpenAIMcpServerTool]]],
         custom_llm_provider: Optional[str] = None,
@@ -1427,6 +1442,15 @@ class LiteLLMCompletionResponsesConfig:
                 )
             elif tool.get("type") == "function":
                 typed_tool = cast(FunctionToolParam, tool)
+                if LiteLLMCompletionResponsesConfig._is_codex_minimax_m27_responses_bridge(
+                    custom_llm_provider=custom_llm_provider,
+                    model=model,
+                ) and not typed_tool.get(
+                    "name"
+                ):
+                    LiteLLMCompletionResponsesConfig._raise_unsupported_minimax_responses_function_tool(
+                        model=model,
+                    )
                 # Ensure parameters has "type": "object" as required by providers like Anthropic
                 parameters = dict(typed_tool.get("parameters", {}) or {})
                 if not parameters or "type" not in parameters:

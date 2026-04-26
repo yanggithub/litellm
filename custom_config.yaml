@@ -3,21 +3,23 @@ model_list:
     litellm_params:
       model: chatgpt/gpt-5.5
 
-  - model_name: codex-planner
+  - model_name: gpt-5.4
     litellm_params:
-      model: chatgpt/gpt-5.5
+      model: chatgpt/gpt-5.4
 
-  - model_name: codex-implementer
+  - model_name: gpt-5.4-mini
     litellm_params:
-      model: minimax/codex-minimax-m2.7
-      api_key: os.environ/MINIMAX_API_KEY
+      model: chatgpt/gpt-5.4-mini
 
-  - model_name: codex-minimax-m2.7
+  - model_name: gpt-5.3-codex
     litellm_params:
-      model: minimax/codex-minimax-m2.7
-      api_key: os.environ/MINIMAX_API_KEY
+      model: chatgpt/gpt-5.3-codex
 
-  - model_name: minimax/codex-minimax-m2.7
+  - model_name: gpt-5.2
+    litellm_params:
+      model: chatgpt/gpt-5.2
+
+  - model_name: minimax-m2.7
     litellm_params:
       model: minimax/codex-minimax-m2.7
       api_key: os.environ/MINIMAX_API_KEY

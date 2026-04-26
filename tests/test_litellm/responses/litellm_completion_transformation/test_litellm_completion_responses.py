@@ -2218,6 +2218,28 @@ def test_minimax_responses_function_tools_are_preserved():
     ]
 
 
+def test_minimax_responses_function_tool_without_name_raises_bad_request():
+    """MiniMax Codex should reject function tools that cannot be called by name."""
+    import litellm
+
+    with pytest.raises(litellm.BadRequestError) as exc_info:
+        LiteLLMCompletionResponsesConfig.transform_responses_api_tools_to_chat_completion_tools(
+            tools=[
+                {
+                    "type": "function",
+                    "description": "run shell commands",
+                    "parameters": {"type": "object"},
+                }
+            ],
+            custom_llm_provider="minimax",
+            model="codex-minimax-m2.7",
+        )
+
+    error_message = str(exc_info.value)
+    assert "Unsupported function tool" in error_message
+    assert "name" in error_message
+
+
 @pytest.mark.parametrize(
     "tool",
     [

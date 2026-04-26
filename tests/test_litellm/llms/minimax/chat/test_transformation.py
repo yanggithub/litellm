@@ -220,6 +220,32 @@ def test_codex_minimax_m27_rejects_non_function_chat_tools():
     assert "function tools only" in str(exc_info.value)
 
 
+def test_codex_minimax_m27_rejects_malformed_function_chat_tools():
+    """MiniMax Codex should reject function tools without nested function names."""
+    import litellm
+
+    config = MinimaxChatConfig()
+
+    with pytest.raises(litellm.BadRequestError) as exc_info:
+        config.map_openai_params(
+            non_default_params={
+                "tools": [
+                    {
+                        "type": "function",
+                        "name": "shell",
+                        "parameters": {"type": "object"},
+                    }
+                ]
+            },
+            optional_params={},
+            model="codex-minimax-m2.7",
+            drop_params=True,
+        )
+
+    assert "Unsupported function tool" in str(exc_info.value)
+    assert "function.name" in str(exc_info.value)
+
+
 def test_codex_minimax_m27_rejects_unsupported_tool_choice_shape():
     """MiniMax Codex should reject Responses-only forced tool_choice forms."""
     import litellm

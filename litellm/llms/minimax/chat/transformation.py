@@ -198,6 +198,15 @@ class MinimaxChatConfig(OpenAIGPTConfig):
                     ),
                     model=model,
                 )
+            function = tool.get("function")
+            if not isinstance(function, dict) or not function.get("name"):
+                self._raise_codex_minimax_bad_request(
+                    message=(
+                        f"Unsupported function tool for minimax/{model}. "
+                        "MiniMax Codex V1 requires OpenAI chat function tools with function.name."
+                    ),
+                    model=model,
+                )
 
     def _validate_codex_minimax_tool_choice(
         self,
