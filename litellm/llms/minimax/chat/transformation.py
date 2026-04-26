@@ -156,4 +156,87 @@ class MinimaxChatConfig(OpenAIGPTConfig):
             for param in unsupported_params:
                 optional_params.pop(param, None)
 
+            self._validate_codex_minimax_tools(
+                tools=optional_params.get("tools"),
+                model=model,
+            )
+            self._validate_codex_minimax_tool_choice(
+                tool_choice=optional_params.get("tool_choice"),
+                model=model,
+            )
+
         return optional_params
+
+    @staticmethod
+    def _raise_codex_minimax_bad_request(
+        message: str,
+        model: str,
+    ) -> None:
+        raise litellm.BadRequestError(
+            message=message,
+            model=model,
+            llm_provider="minimax",
+        )
+
+    def _validate_codex_minimax_tools(
+        self,
+        tools: Optional[List[Dict[str, Any]]],
+        model: str,
+    ) -> None:
+        if not tools:
+            return
+
+        for tool in tools:
+            tool_type = str(tool.get("type") or "")
+            if tool_type != "function":
+                self._raise_codex_minimax_bad_request(
+                    message=(
+                        f"Unsupported tool type '{tool_type}' for minimax/{model}. "
+                        "MiniMax Codex V1 supports function tools only. "
+                        "Use GPT models for richer Responses features such as MCP namespace tools, "
+                        "web search, or image generation."
+                    ),
+                    model=model,
+                )
+
+    def _validate_codex_minimax_tool_choice(
+        self,
+        tool_choice: Any,
+        model: str,
+    ) -> None:
+        if tool_choice is None:
+            return
+        if isinstance(tool_choice, str):
+            if tool_choice in {"auto", "none"}:
+                return
+            self._raise_codex_minimax_bad_request(
+                message=(
+                    f"Unsupported tool_choice '{tool_choice}' for minimax/{model}. "
+                    "MiniMax Codex V1 supports function tools only. "
+                    "Use GPT models for richer Responses features."
+                ),
+                model=model,
+            )
+        if isinstance(tool_choice, dict):
+            if (
+                tool_choice.get("type") == "function"
+                and isinstance(tool_choice.get("function"), dict)
+                and tool_choice["function"].get("name")
+            ):
+                return
+            self._raise_codex_minimax_bad_request(
+                message=(
+                    f"Unsupported tool_choice for minimax/{model}. "
+                    "MiniMax Codex V1 supports function tools only. "
+                    "Use GPT models for richer Responses features."
+                ),
+                model=model,
+            )
+        self._raise_codex_minimax_bad_request(
+            message=(
+                f"Unsupported tool_choice for minimax/{model}. "
+                "MiniMax Codex V1 supports function tools only. "
+                "Use GPT models for richer Responses features."
+            ),
+            model=model,
+        )

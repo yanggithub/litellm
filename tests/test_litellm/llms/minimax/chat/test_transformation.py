@@ -170,6 +170,76 @@ def test_codex_minimax_m27_map_openai_params_drops_unsupported_params():
     assert "stream_options" not in optional_params
 
 
+def test_codex_minimax_m27_rejects_non_function_chat_tools():
+    """MiniMax Codex should reject bad chat tool shapes before HTTP dispatch."""
+    import litellm
+
+    config = MinimaxChatConfig()
+
+    with pytest.raises(litellm.BadRequestError) as exc_info:
+        config.map_openai_params(
+            non_default_params={
+                "tools": [
+                    {
+                        "type": "namespace",
+                        "namespace": "tools",
+                    }
+                ]
+            },
+            optional_params={},
+            model="codex-minimax-m2.7",
+            drop_params=True,
+        )
+
+    assert "Unsupported tool type 'namespace'" in str(exc_info.value)
+    assert "function tools only" in str(exc_info.value)
+
+
+def test_codex_minimax_m27_rejects_unsupported_tool_choice_shape():
+    """MiniMax Codex should reject Responses-only forced tool_choice forms."""
+    import litellm
+
+    config = MinimaxChatConfig()
+
+    with pytest.raises(litellm.BadRequestError) as exc_info:
+        config.map_openai_params(
+            non_default_params={
+                "tool_choice": {
+                    "type": "namespace",
+                    "namespace": "tools",
+                }
+            },
+            optional_params={},
+            model="codex-minimax-m2.7",
+            drop_params=True,
+        )
+
+    assert "Unsupported tool_choice" in str(exc_info.value)
+    assert "function tools only" in str(exc_info.value)
+
+
+def test_codex_minimax_m27_allows_function_tool_choice():
+    """MiniMax Codex should keep standard OpenAI function tool_choice."""
+    config = MinimaxChatConfig()
+
+    optional_params = config.map_openai_params(
+        non_default_params={
+            "tool_choice": {
+                "type": "function",
+                "function": {"name": "shell"},
+            }
+        },
+        optional_params={},
+        model="codex-minimax-m2.7",
+        drop_params=True,
+    )
+
+    assert optional_params["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "shell"},
+    }
+
+
 def test_minimax_provider_config_manager():
     """Test that ProviderConfigManager returns MinimaxChatConfig"""
     from litellm.types.utils import LlmProviders
