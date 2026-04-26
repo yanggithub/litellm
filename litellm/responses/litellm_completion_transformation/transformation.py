@@ -1397,10 +1397,13 @@ class LiteLLMCompletionResponsesConfig:
         web_search_options: Optional[OpenAIWebSearchOptions] = None
         for tool in tools:
             tool_type = str(tool.get("type") or "")
-            if LiteLLMCompletionResponsesConfig._is_codex_minimax_m27_responses_bridge(
-                custom_llm_provider=custom_llm_provider,
-                model=model,
-            ) and tool_type != "function":
+            if (
+                LiteLLMCompletionResponsesConfig._is_codex_minimax_m27_responses_bridge(
+                    custom_llm_provider=custom_llm_provider,
+                    model=model,
+                )
+                and tool_type != "function"
+            ):
                 LiteLLMCompletionResponsesConfig._raise_unsupported_minimax_responses_tool(
                     tool_type=tool_type,
                     model=model,

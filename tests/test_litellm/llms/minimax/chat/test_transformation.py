@@ -115,9 +115,7 @@ def test_codex_minimax_m27_supported_params_are_narrow():
     """Codex MiniMax M2.7 should not advertise unsupported Codex/Responses params."""
     config = MinimaxChatConfig()
 
-    supported_params = config.get_supported_openai_params(
-        model="codex-minimax-m2.7"
-    )
+    supported_params = config.get_supported_openai_params(model="codex-minimax-m2.7")
 
     assert "messages" not in supported_params
     assert "tools" in supported_params
