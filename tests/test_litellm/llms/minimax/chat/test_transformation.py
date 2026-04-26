@@ -111,6 +111,65 @@ def test_codex_minimax_m27_model_info():
     assert model_info["supports_reasoning"] is True
 
 
+def test_codex_minimax_m27_supported_params_are_narrow():
+    """Codex MiniMax M2.7 should not advertise unsupported Codex/Responses params."""
+    config = MinimaxChatConfig()
+
+    supported_params = config.get_supported_openai_params(
+        model="codex-minimax-m2.7"
+    )
+
+    assert "messages" not in supported_params
+    assert "tools" in supported_params
+    assert "tool_choice" in supported_params
+    assert "stream" in supported_params
+    assert "temperature" in supported_params
+    assert "top_p" in supported_params
+    assert "max_tokens" in supported_params
+    assert "parallel_tool_calls" not in supported_params
+    assert "web_search_options" not in supported_params
+    assert "stream_options" not in supported_params
+
+
+def test_codex_minimax_m27_map_openai_params_drops_unsupported_params():
+    """MiniMax Codex adapter should remove params MiniMax rejects."""
+    config = MinimaxChatConfig()
+
+    optional_params = config.map_openai_params(
+        non_default_params={
+            "stream": True,
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "max_tokens": 1024,
+            "parallel_tool_calls": True,
+            "web_search_options": {"search_context_size": "low"},
+            "stream_options": {"include_usage": True},
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "shell",
+                        "description": "run a shell command",
+                        "parameters": {"type": "object"},
+                    },
+                }
+            ],
+        },
+        optional_params={},
+        model="codex-minimax-m2.7",
+        drop_params=True,
+    )
+
+    assert optional_params["stream"] is True
+    assert optional_params["temperature"] == 0.2
+    assert optional_params["top_p"] == 0.9
+    assert optional_params["max_tokens"] == 1024
+    assert optional_params["tools"][0]["type"] == "function"
+    assert "parallel_tool_calls" not in optional_params
+    assert "web_search_options" not in optional_params
+    assert "stream_options" not in optional_params
+
+
 def test_minimax_provider_config_manager():
     """Test that ProviderConfigManager returns MinimaxChatConfig"""
     from litellm.types.utils import LlmProviders

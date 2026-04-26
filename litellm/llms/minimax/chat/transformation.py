@@ -2,12 +2,20 @@
 MiniMax OpenAI transformation config - extends OpenAI chat config for MiniMax's OpenAI-compatible API
 """
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import litellm
 from litellm.llms.openai.chat.gpt_transformation import OpenAIGPTConfig
 from litellm.secret_managers.main import get_secret_str
 from litellm.types.llms.openai import AllMessageValues, ChatCompletionToolParam
+
+
+CODEX_MINIMAX_M27_MODEL = "codex-minimax-m2.7"
+
+
+def _is_codex_minimax_m27_model(model: str) -> bool:
+    normalized_model = model.split("/", 1)[-1].lower()
+    return normalized_model == CODEX_MINIMAX_M27_MODEL
 
 
 class MinimaxChatConfig(OpenAIGPTConfig):
@@ -87,12 +95,33 @@ class MinimaxChatConfig(OpenAIGPTConfig):
     def get_supported_openai_params(self, model: str) -> list:
         """
         Get supported OpenAI parameters for MiniMax.
-        Adds reasoning_split and thinking to the list of supported params.
+
+        Codex MiniMax M2.7 is intentionally narrow because it is used through
+        LiteLLM's Responses-to-chat bridge and MiniMax rejects several
+        OpenAI/Codex request fields.
         """
+        if _is_codex_minimax_m27_model(model):
+            supported_params = [
+                "frequency_penalty",
+                "max_tokens",
+                "presence_penalty",
+                "seed",
+                "stop",
+                "stream",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "extra_headers",
+                "reasoning_effort",
+                "thinking",
+                "reasoning_split",
+            ]
+            return supported_params
+
         base_params = super().get_supported_openai_params(model=model)
         additional_params = ["reasoning_split"]
 
-        # Add thinking parameter if model supports reasoning
         try:
             if litellm.supports_reasoning(model=model, custom_llm_provider="minimax"):
                 additional_params.append("thinking")
@@ -100,3 +129,31 @@ class MinimaxChatConfig(OpenAIGPTConfig):
             pass
 
         return base_params + additional_params
+
+    def map_openai_params(
+        self,
+        non_default_params: dict,
+        optional_params: dict,
+        model: str,
+        drop_params: bool,
+    ) -> dict:
+        optional_params = super().map_openai_params(
+            non_default_params=non_default_params,
+            optional_params=optional_params,
+            model=model,
+            drop_params=drop_params,
+        )
+
+        if _is_codex_minimax_m27_model(model):
+            unsupported_params = {
+                "parallel_tool_calls",
+                "web_search_options",
+                "stream_options",
+                "context_management",
+                "metadata",
+                "service_tier",
+            }
+            for param in unsupported_params:
+                optional_params.pop(param, None)
+
+        return optional_params
