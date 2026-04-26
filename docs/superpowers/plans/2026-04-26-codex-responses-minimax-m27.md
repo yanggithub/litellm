@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.12, LiteLLM provider configs, OpenAI Responses API bridge, pytest, JSON model metadata.
 
+**Python Environment:** Use `uv` and the project virtual environment (`.venv`) to manage Python dependencies. Do NOT use bare `python` or `pytest` commands; always prefix Python commands with `uv run`. If any task creates or modifies a dependency file such as `pyproject.toml`, `uv.lock`, or dependency-group configuration, run `uv sync` immediately after that dependency-file change to install/update the virtual environment before running tests. Note: uv is already installed; use it directly without upgrading.
+
 ---
 
 ## File Structure
