@@ -2,8 +2,10 @@
 Test MiniMax OpenAI-compatible API support
 """
 
+import json
 import os
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,7 +16,14 @@ sys.path.insert(
 
 import litellm
 from litellm import completion
+from litellm.litellm_core_utils.get_model_cost_map import (
+    GetModelCostMap,
+    _expand_model_aliases,
+)
 from litellm.llms.minimax.chat.transformation import MinimaxChatConfig
+
+
+CODEX_MINIMAX_M27_MODEL = "minimax/codex-minimax-m2.7"
 
 
 def test_minimax_chat_config():
@@ -98,17 +107,35 @@ def test_minimax_provider_routing():
     assert model == "MiniMax-M2.1"
 
 
-def test_codex_minimax_m27_model_info():
+def test_codex_minimax_m27_model_info(monkeypatch):
     """Codex MiniMax M2.7 should be registered as a native MiniMax chat model."""
-    import litellm
+    local_model_cost = _expand_model_aliases(
+        GetModelCostMap.load_local_model_cost_map()
+    )
+    assert CODEX_MINIMAX_M27_MODEL in local_model_cost
+    monkeypatch.setattr(litellm, "model_cost", local_model_cost)
 
-    model_info = litellm.get_model_info("minimax/codex-minimax-m2.7")
+    model_info = litellm.get_model_info(CODEX_MINIMAX_M27_MODEL)
 
     assert model_info["litellm_provider"] == "minimax"
     assert model_info["mode"] == "chat"
     assert model_info["supports_function_calling"] is True
     assert model_info["supports_system_messages"] is True
     assert model_info["supports_reasoning"] is True
+
+
+def test_codex_minimax_m27_model_info_matches_root_model_cost_map():
+    """The package backup and published root map should stay in sync."""
+    repo_root = Path(__file__).resolve().parents[5]
+    root_model_cost = json.loads(
+        (repo_root / "model_prices_and_context_window.json").read_text(encoding="utf-8")
+    )
+    local_model_cost = GetModelCostMap.load_local_model_cost_map()
+
+    assert (
+        root_model_cost[CODEX_MINIMAX_M27_MODEL]
+        == local_model_cost[CODEX_MINIMAX_M27_MODEL]
+    )
 
 
 def test_codex_minimax_m27_supported_params_are_narrow():
