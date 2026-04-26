@@ -82,3 +82,30 @@ if __name__ == "__main__":
     test_litellm_proxy_responses_api_config_get_complete_url()
     test_litellm_proxy_responses_api_config_inherits_from_openai()
     print("All tests passed!")
+
+
+def test_chatgpt_gpt_55_uses_native_responses_config():
+    """GPT planning model should keep native ChatGPT Responses handling."""
+    from litellm.llms.chatgpt.responses.transformation import ChatGPTResponsesAPIConfig
+    from litellm.types.utils import LlmProviders
+    from litellm.utils import ProviderConfigManager
+
+    config = ProviderConfigManager.get_provider_responses_api_config(
+        model="gpt-5.5",
+        provider=LlmProviders.CHATGPT,
+    )
+
+    assert isinstance(config, ChatGPTResponsesAPIConfig)
+
+
+def test_minimax_codex_m27_does_not_register_native_responses_config():
+    """MiniMax M2.7 should use the Responses-to-chat bridge, not native Responses."""
+    from litellm.types.utils import LlmProviders
+    from litellm.utils import ProviderConfigManager
+
+    config = ProviderConfigManager.get_provider_responses_api_config(
+        model="codex-minimax-m2.7",
+        provider=LlmProviders.MINIMAX,
+    )
+
+    assert config is None
