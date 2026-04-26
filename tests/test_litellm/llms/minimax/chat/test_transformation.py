@@ -98,6 +98,19 @@ def test_minimax_provider_routing():
     assert model == "MiniMax-M2.1"
 
 
+def test_codex_minimax_m27_model_info():
+    """Codex MiniMax M2.7 should be registered as a native MiniMax chat model."""
+    import litellm
+
+    model_info = litellm.get_model_info("minimax/codex-minimax-m2.7")
+
+    assert model_info["litellm_provider"] == "minimax"
+    assert model_info["mode"] == "chat"
+    assert model_info["supports_function_calling"] is True
+    assert model_info["supports_system_messages"] is True
+    assert model_info["supports_reasoning"] is True
+
+
 def test_minimax_provider_config_manager():
     """Test that ProviderConfigManager returns MinimaxChatConfig"""
     from litellm.types.utils import LlmProviders
