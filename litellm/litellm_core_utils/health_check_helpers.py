@@ -2,7 +2,7 @@
 Helper functions for health check calls.
 """
 
-from typing import TYPE_CHECKING, Callable, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional
 
 from litellm.types.utils import LIST_BATCHES_SUPPORTED_PROVIDERS
 
@@ -14,6 +14,30 @@ TEST_PDF_URL = "data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMyAwIG9iago8PC9U
 
 
 class HealthCheckHelpers:
+    @staticmethod
+    def _get_responses_health_check_input(
+        input: Optional[list], prompt: Optional[str]
+    ) -> Any:
+        response_input = input if input is not None else prompt or "test"
+        if isinstance(response_input, list) and all(
+            isinstance(item, str) for item in response_input
+        ):
+            return [
+                {
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": item}],
+                }
+                for item in response_input
+            ]
+        if isinstance(response_input, str):
+            return [
+                {
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": response_input}],
+                }
+            ]
+        return response_input
+
     @staticmethod
     async def ahealth_check_wildcard_models(
         model: str,
@@ -207,7 +231,10 @@ class HealthCheckHelpers:
             ),
             "responses": lambda: litellm.aresponses(
                 **_filter_model_params(model_params=model_params),
-                input=prompt or "test",
+                input=HealthCheckHelpers._get_responses_health_check_input(
+                    input=input,
+                    prompt=prompt,
+                ),
             ),
             "ocr": lambda: litellm.aocr(
                 **_filter_model_params(model_params=model_params),

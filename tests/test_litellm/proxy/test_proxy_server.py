@@ -550,6 +550,24 @@ def test_ui_extensionless_route_requires_restructure(tmp_path):
     assert "login" in response.text
 
 
+def test_ui_pre_restructured_detection_rejects_partial_export(tmp_path):
+    """
+    Regression: a bundle can contain some directory routes while login.html
+    remains flat. /ui/login only works after login/index.html exists.
+    """
+
+    from litellm.proxy import proxy_server
+
+    ui_root = tmp_path / "ui"
+    (ui_root / "_next").mkdir(parents=True)
+    (ui_root / "index.html").write_text("index")
+    (ui_root / "login.html").write_text("login")
+    (ui_root / "logs").mkdir()
+    (ui_root / "logs" / "index.html").write_text("logs")
+
+    assert proxy_server._is_ui_pre_restructured(str(ui_root)) is False
+
+
 def test_restructure_always_happens(monkeypatch):
     """
     Test that restructuring logic always executes regardless of LITELLM_NON_ROOT setting.

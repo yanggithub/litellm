@@ -1256,33 +1256,36 @@ try:
             verbose_proxy_logger.debug(f"Found UI ready marker: {marker_file}")
             return True
 
-        # Fallback signal: Detect restructuring pattern
-        # After restructuring, routes exist as directories with index.html inside
-        # (e.g., login/index.html instead of login.html)
+        # Fallback signal: Detect whether all flat route HTML files have already
+        # been converted to directory routes. Some exported bundles already
+        # contain a few route directories (e.g. logs/index.html) while other
+        # routes still exist as flat files (e.g. login.html).
         # Check for main index.html first (basic UI structure requirement)
         if not os.path.exists(os.path.join(ui_dir, "index.html")):
             return False
 
-        # Look for ANY subdirectory with index.html (proves restructuring happened)
-        # Ignore directories starting with _ (Next.js internals like _next)
         try:
-            for entry in os.scandir(ui_dir):
-                if entry.is_dir() and not entry.name.startswith("_"):
-                    index_path = os.path.join(entry.path, "index.html")
-                    if os.path.exists(index_path):
-                        # Found at least one restructured route - this proves the pattern
+            for current_root, dirs, files in os.walk(ui_dir):
+                rel_root = os.path.relpath(current_root, ui_dir)
+                first_segment = "" if rel_root == "." else rel_root.split(os.sep)[0]
+
+                if first_segment in {"_next", "litellm-asset-prefix"}:
+                    dirs[:] = []
+                    continue
+
+                for filename in files:
+                    if filename.endswith(".html") and filename != "index.html":
                         verbose_proxy_logger.debug(
-                            f"Detected restructured UI via pattern: found {entry.name}/index.html"
+                            f"Detected flat UI route requiring restructure: {os.path.join(current_root, filename)}"
                         )
-                        return True
+                        return False
         except (PermissionError, OSError) as e:
             verbose_proxy_logger.debug(
                 f"Could not scan {ui_dir} for restructuring detection: {e}"
             )
             return False
 
-        # No restructured routes found
-        return False
+        return True
 
     def _try_populate_ui_directory(
         source_path: str, target_path: str
@@ -1317,7 +1320,7 @@ try:
     if is_non_root:
         default_runtime_ui_path = "/var/lib/litellm/ui"
     else:
-        default_runtime_ui_path = packaged_ui_path
+        default_runtime_ui_path = "/tmp/litellm-ui"
 
     runtime_ui_path = os.getenv("LITELLM_UI_PATH", default_runtime_ui_path)
 

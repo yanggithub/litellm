@@ -2,22 +2,32 @@ model_list:
   - model_name: gpt-5.5
     litellm_params:
       model: chatgpt/gpt-5.5
+    model_info:
+      mode: responses
 
   - model_name: gpt-5.4
     litellm_params:
       model: chatgpt/gpt-5.4
+    model_info:
+      mode: responses
 
   - model_name: gpt-5.4-mini
     litellm_params:
       model: chatgpt/gpt-5.4-mini
+    model_info:
+      mode: responses
 
   - model_name: gpt-5.3-codex
     litellm_params:
       model: chatgpt/gpt-5.3-codex
+    model_info:
+      mode: responses
 
   - model_name: gpt-5.2
     litellm_params:
       model: chatgpt/gpt-5.2
+    model_info:
+      mode: responses
 
   - model_name: minimax-m2.7
     litellm_params:
@@ -26,3 +36,9 @@ model_list:
 
 litellm_settings:
   drop_params: true
+
+general_settings:
+  # This key is REQUIRED to access the UI (must start with sk-)
+  master_key: sk-litellm-local
+  # Optional: Redirect the root path (/) directly to the dashboard (/ui)
+  # root_redirect_url: "/ui"

@@ -83,6 +83,61 @@ def test_get_litellm_internal_health_check_user_api_key_auth():
 
 
 @pytest.mark.asyncio
+async def test_responses_health_check_uses_provided_input():
+    """Responses health checks must preserve list-shaped input for providers that require it."""
+
+    responses_input = [
+        {
+            "role": "user",
+            "content": [{"type": "input_text", "text": "test from litellm"}],
+        }
+    ]
+
+    with patch("litellm.aresponses", new_callable=AsyncMock) as mock_aresponses:
+        mock_aresponses.return_value = {}
+        handlers = HealthCheckHelpers.get_mode_handlers(
+            model="gpt-5.5",
+            custom_llm_provider="chatgpt",
+            model_params={"model": "chatgpt/gpt-5.5"},
+            prompt="test from litellm",
+            input=responses_input,
+        )
+
+        await handlers["responses"]()
+
+    mock_aresponses.assert_awaited_once_with(
+        model="chatgpt/gpt-5.5",
+        input=responses_input,
+    )
+
+
+@pytest.mark.asyncio
+async def test_responses_health_check_normalizes_string_list_input():
+    """Proxy health checks pass list[str]; Responses providers need input items."""
+
+    with patch("litellm.aresponses", new_callable=AsyncMock) as mock_aresponses:
+        mock_aresponses.return_value = {}
+        handlers = HealthCheckHelpers.get_mode_handlers(
+            model="gpt-5.5",
+            custom_llm_provider="chatgpt",
+            model_params={"model": "chatgpt/gpt-5.5"},
+            input=["test from litellm"],
+        )
+
+        await handlers["responses"]()
+
+    mock_aresponses.assert_awaited_once_with(
+        model="chatgpt/gpt-5.5",
+        input=[
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": "test from litellm"}],
+            }
+        ],
+    )
+
+
+@pytest.mark.asyncio
 async def test_ahealth_check_failure_masks_raw_request_headers():
     """
     Security test: Verify that when ahealth_check() fails, the raw_request_headers
