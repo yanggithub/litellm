@@ -2,7 +2,7 @@
 MiniMax OpenAI transformation config - extends OpenAI chat config for MiniMax's OpenAI-compatible API
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import litellm
 from litellm.llms.minimax.common_utils import is_codex_minimax_model
@@ -84,6 +84,60 @@ class MinimaxChatConfig(OpenAIGPTConfig):
         """
         # MiniMax supports cache_control, so return messages and tools unchanged
         return messages, tools
+
+    def transform_request(
+        self,
+        model: str,
+        messages: List[AllMessageValues],
+        optional_params: dict,
+        litellm_params: dict,
+        headers: dict,
+    ) -> dict:
+        if is_codex_minimax_model(model):
+            messages = self._merge_codex_minimax_system_messages(messages)
+
+        return super().transform_request(
+            model=model,
+            messages=messages,
+            optional_params=optional_params,
+            litellm_params=litellm_params,
+            headers=headers,
+        )
+
+    @staticmethod
+    def _merge_codex_minimax_system_messages(
+        messages: List[AllMessageValues],
+    ) -> List[AllMessageValues]:
+        system_message_indices = [
+            index
+            for index, message in enumerate(messages)
+            if message.get("role") == "system"
+        ]
+        if len(system_message_indices) <= 1:
+            return messages
+
+        from litellm.litellm_core_utils.prompt_templates.common_utils import (
+            convert_content_list_to_str,
+        )
+
+        merged_system_content = "\n\n".join(
+            convert_content_list_to_str(messages[index])
+            for index in system_message_indices
+        )
+        first_system_index = system_message_indices[0]
+        merged_system_message = cast(
+            AllMessageValues, dict(messages[first_system_index])
+        )
+        merged_system_message["content"] = merged_system_content
+
+        merged_messages: List[AllMessageValues] = []
+        for index, message in enumerate(messages):
+            if index == first_system_index:
+                merged_messages.append(merged_system_message)
+            elif message.get("role") != "system":
+                merged_messages.append(message)
+
+        return merged_messages
 
     def get_supported_openai_params(self, model: str) -> list:
         """

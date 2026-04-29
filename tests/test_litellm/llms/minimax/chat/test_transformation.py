@@ -336,6 +336,54 @@ def test_codex_minimax_m27_stream_options_not_stripped():
     assert optional_params.get("stream_options") == {"include_usage": True}
 
 
+def test_codex_minimax_m27_merges_multiple_system_messages():
+    """MiniMax Codex should send only one system message."""
+    config = MinimaxChatConfig()
+
+    request = config.transform_request(
+        model="codex-minimax-m2.7",
+        messages=[
+            {"role": "system", "content": "first instructions"},
+            {"role": "system", "content": "second instructions"},
+            {"role": "user", "content": "hello"},
+        ],
+        optional_params={},
+        litellm_params={},
+        headers={},
+    )
+
+    assert request["messages"] == [
+        {
+            "role": "system",
+            "content": "first instructions\n\nsecond instructions",
+        },
+        {"role": "user", "content": "hello"},
+    ]
+
+
+def test_non_codex_minimax_models_do_not_merge_system_messages():
+    """Standard MiniMax models should keep OpenAI-compatible message behavior."""
+    config = MinimaxChatConfig()
+
+    request = config.transform_request(
+        model="MiniMax-M2.1",
+        messages=[
+            {"role": "system", "content": "first instructions"},
+            {"role": "system", "content": "second instructions"},
+            {"role": "user", "content": "hello"},
+        ],
+        optional_params={},
+        litellm_params={},
+        headers={},
+    )
+
+    assert request["messages"] == [
+        {"role": "system", "content": "first instructions"},
+        {"role": "system", "content": "second instructions"},
+        {"role": "user", "content": "hello"},
+    ]
+
+
 def test_minimax_provider_config_manager():
     """Test that ProviderConfigManager returns MinimaxChatConfig"""
     from litellm.types.utils import LlmProviders

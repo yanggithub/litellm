@@ -33,6 +33,17 @@ model_list:
     litellm_params:
       model: minimax/codex-minimax-m2.7
       api_key: os.environ/MINIMAX_API_KEY
+      additional_drop_params:
+        - reasoning
+        - reasoning_effort
+        - thinking
+        - reasoning_split
+        - stream_options
+        - parallel_tool_calls
+        - tool_choice
+        - response_format
+        - store
+        - user
 
 litellm_settings:
   drop_params: true
