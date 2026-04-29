@@ -96,6 +96,8 @@ class MinimaxChatConfig(OpenAIGPTConfig):
         if is_codex_minimax_model(model):
             messages = self._merge_codex_minimax_system_messages(messages)
 
+        messages = self._enforce_tool_call_adjacency(messages)
+
         return super().transform_request(
             model=model,
             messages=messages,
@@ -103,6 +105,80 @@ class MinimaxChatConfig(OpenAIGPTConfig):
             litellm_params=litellm_params,
             headers=headers,
         )
+
+    @staticmethod
+    def _enforce_tool_call_adjacency(
+        messages: List[AllMessageValues],
+    ) -> List[AllMessageValues]:
+        """
+        Ensure tool result messages immediately follow the assistant message
+        that issued the tool calls.
+
+        MiniMax rejects requests where non-tool messages sit between an
+        assistant(tool_calls) message and its corresponding tool(result)
+        messages with:
+
+            "invalid params, tool call result does not follow tool call (2013)"
+
+        This method moves any intervening messages to before the assistant
+        tool_calls message, preserving relative ordering of everything else.
+        """
+        if not messages:
+            return messages
+
+        result: List[AllMessageValues] = []
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
+
+            # Check if this is an assistant message with tool_calls
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                tool_call_ids = set()
+                for tc in msg.get("tool_calls", []):
+                    tc_id = (
+                        tc.get("id")
+                        if isinstance(tc, dict)
+                        else getattr(tc, "id", None)
+                    )
+                    if tc_id:
+                        tool_call_ids.add(tc_id)
+
+                # Collect all messages after this one until we've gathered all
+                # corresponding tool results (or run out of messages)
+                intervening: List[AllMessageValues] = []
+                tool_results: List[AllMessageValues] = []
+                j = i + 1
+                while j < len(messages):
+                    next_msg = messages[j]
+                    if next_msg.get("role") == "tool":
+                        tool_results.append(next_msg)
+                        j += 1
+                    elif (
+                        next_msg.get("role") == "assistant"
+                        and not next_msg.get("tool_calls")
+                        and tool_call_ids
+                        and not tool_results
+                    ):
+                        # Non-tool-call assistant message between tool_calls
+                        # and the tool results — move it before
+                        intervening.append(next_msg)
+                        j += 1
+                    else:
+                        # Different message type or we already started
+                        # collecting tool results — stop
+                        break
+
+                # Emit: intervening messages first, then assistant(tool_calls),
+                # then tool results
+                result.extend(intervening)
+                result.append(msg)
+                result.extend(tool_results)
+                i = j
+            else:
+                result.append(msg)
+                i += 1
+
+        return result
 
     @staticmethod
     def _merge_codex_minimax_system_messages(
