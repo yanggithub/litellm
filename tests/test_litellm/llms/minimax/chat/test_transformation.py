@@ -153,7 +153,7 @@ def test_codex_minimax_m27_supported_params_are_narrow():
     assert "max_tokens" in supported_params
     assert "parallel_tool_calls" not in supported_params
     assert "web_search_options" not in supported_params
-    assert "stream_options" not in supported_params
+    assert "stream_options" in supported_params
 
 
 def test_codex_minimax_m27_map_openai_params_drops_unsupported_params():
@@ -192,7 +192,7 @@ def test_codex_minimax_m27_map_openai_params_drops_unsupported_params():
     assert optional_params["tools"][0]["type"] == "function"
     assert "parallel_tool_calls" not in optional_params
     assert "web_search_options" not in optional_params
-    assert "stream_options" not in optional_params
+    assert optional_params["stream_options"] == {"include_usage": True}
 
 
 def test_codex_minimax_m27_rejects_non_function_chat_tools():
@@ -289,6 +289,51 @@ def test_codex_minimax_m27_allows_function_tool_choice():
         "type": "function",
         "function": {"name": "shell"},
     }
+
+
+@pytest.mark.parametrize("tool_choice_str", ["auto", "none", "required"])
+def test_codex_minimax_m27_allows_standard_string_tool_choices(tool_choice_str):
+    """MiniMax Codex should accept standard OpenAI string tool_choice values."""
+    config = MinimaxChatConfig()
+
+    optional_params = config.map_openai_params(
+        non_default_params={"tool_choice": tool_choice_str},
+        optional_params={},
+        model="codex-minimax-m2.7",
+        drop_params=True,
+    )
+
+    assert optional_params["tool_choice"] == tool_choice_str
+
+
+def test_non_codex_minimax_models_unaffected_by_codex_restrictions():
+    """Standard MiniMax models should keep full OpenAI param support."""
+    config = MinimaxChatConfig()
+
+    codex_params = config.get_supported_openai_params(model="codex-minimax-m2.7")
+    standard_params = config.get_supported_openai_params(model="MiniMax-M2.1")
+
+    # Standard models should have strictly more supported params than Codex
+    assert len(standard_params) > len(codex_params)
+    # Standard models should still include params that Codex restricts
+    assert "stream_options" in standard_params
+
+
+def test_codex_minimax_m27_stream_options_not_stripped():
+    """MiniMax Codex should preserve stream_options for Responses usage tracking."""
+    config = MinimaxChatConfig()
+
+    optional_params = config.map_openai_params(
+        non_default_params={
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        },
+        optional_params={},
+        model="codex-minimax-m2.7",
+        drop_params=True,
+    )
+
+    assert optional_params.get("stream_options") == {"include_usage": True}
 
 
 def test_minimax_provider_config_manager():

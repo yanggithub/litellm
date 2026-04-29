@@ -10,8 +10,10 @@ from openai.types.responses.response_create_params import ResponseInputParam
 from openai.types.responses.tool_param import FunctionToolParam
 from typing_extensions import TypedDict
 
+import litellm
 from litellm.caching import InMemoryCache
 from litellm.litellm_core_utils.litellm_logging import Logging as LiteLLMLoggingObj
+from litellm.llms.minimax.common_utils import is_codex_minimax_model
 from litellm.responses.litellm_completion_transformation.session_handler import (
     ResponsesSessionHandler,
 )
@@ -1357,15 +1359,13 @@ class LiteLLMCompletionResponsesConfig:
     ) -> bool:
         if custom_llm_provider != "minimax" or model is None:
             return False
-        return model.split("/", 1)[-1].lower() == "codex-minimax-m2.7"
+        return is_codex_minimax_model(model)
 
     @staticmethod
     def _raise_unsupported_minimax_responses_tool(
         tool_type: str,
         model: Optional[str],
     ) -> None:
-        import litellm
-
         raise litellm.BadRequestError(
             message=(
                 f"Unsupported tool type '{tool_type}' for minimax/{model}. "
@@ -1381,8 +1381,6 @@ class LiteLLMCompletionResponsesConfig:
     def _raise_unsupported_minimax_responses_function_tool(
         model: Optional[str],
     ) -> None:
-        import litellm
-
         raise litellm.BadRequestError(
             message=(
                 f"Unsupported function tool for minimax/{model}. "

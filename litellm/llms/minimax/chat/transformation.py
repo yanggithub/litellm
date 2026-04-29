@@ -5,17 +5,10 @@ MiniMax OpenAI transformation config - extends OpenAI chat config for MiniMax's 
 from typing import Any, Dict, List, Optional, Tuple
 
 import litellm
+from litellm.llms.minimax.common_utils import is_codex_minimax_model
 from litellm.llms.openai.chat.gpt_transformation import OpenAIGPTConfig
 from litellm.secret_managers.main import get_secret_str
 from litellm.types.llms.openai import AllMessageValues, ChatCompletionToolParam
-
-
-CODEX_MINIMAX_M27_MODEL = "codex-minimax-m2.7"
-
-
-def _is_codex_minimax_m27_model(model: str) -> bool:
-    normalized_model = model.split("/", 1)[-1].lower()
-    return normalized_model == CODEX_MINIMAX_M27_MODEL
 
 
 class MinimaxChatConfig(OpenAIGPTConfig):
@@ -100,7 +93,7 @@ class MinimaxChatConfig(OpenAIGPTConfig):
         LiteLLM's Responses-to-chat bridge and MiniMax rejects several
         OpenAI/Codex request fields.
         """
-        if _is_codex_minimax_m27_model(model):
+        if is_codex_minimax_model(model):
             supported_params = [
                 "frequency_penalty",
                 "max_tokens",
@@ -108,6 +101,7 @@ class MinimaxChatConfig(OpenAIGPTConfig):
                 "seed",
                 "stop",
                 "stream",
+                "stream_options",
                 "temperature",
                 "top_p",
                 "tools",
@@ -144,11 +138,10 @@ class MinimaxChatConfig(OpenAIGPTConfig):
             drop_params=drop_params,
         )
 
-        if _is_codex_minimax_m27_model(model):
+        if is_codex_minimax_model(model):
             unsupported_params = {
                 "parallel_tool_calls",
                 "web_search_options",
-                "stream_options",
                 "context_management",
                 "metadata",
                 "service_tier",
@@ -216,7 +209,7 @@ class MinimaxChatConfig(OpenAIGPTConfig):
         if tool_choice is None:
             return
         if isinstance(tool_choice, str):
-            if tool_choice in {"auto", "none"}:
+            if tool_choice in {"auto", "none", "required"}:
                 return
             self._raise_codex_minimax_bad_request(
                 message=(
@@ -226,7 +219,7 @@ class MinimaxChatConfig(OpenAIGPTConfig):
                 ),
                 model=model,
             )
-        if isinstance(tool_choice, dict):
+        elif isinstance(tool_choice, dict):
             if (
                 tool_choice.get("type") == "function"
                 and isinstance(tool_choice.get("function"), dict)
@@ -241,11 +234,12 @@ class MinimaxChatConfig(OpenAIGPTConfig):
                 ),
                 model=model,
             )
-        self._raise_codex_minimax_bad_request(
-            message=(
-                f"Unsupported tool_choice for minimax/{model}. "
-                "MiniMax Codex V1 supports function tools only. "
-                "Use GPT models for richer Responses features."
-            ),
-            model=model,
-        )
+        else:
+            self._raise_codex_minimax_bad_request(
+                message=(
+                    f"Unsupported tool_choice for minimax/{model}. "
+                    "MiniMax Codex V1 supports function tools only. "
+                    "Use GPT models for richer Responses features."
+                ),
+                model=model,
+            )
